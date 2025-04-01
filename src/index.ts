@@ -2,41 +2,51 @@ import { WebSocketServer, WebSocket } from "ws";
 
 const wss = new WebSocketServer({ port: 8080 });
 
-//headers, body, query paramters are not present in websockets
-// structure the application better in express we use "/signup"
+interface User {
+  socket: WebSocket;
+  room: string;
+}
 
-//let userCount = 0;
-let allSockets: WebSocket[] = []; // global array
+let allSockets: User[] = [];
 
 wss.on("connection", (socket) => {
-  allSockets.push(socket);
-
-  //userCount = userCount + 1;
-  //console.log("user connected #" + userCount); // different user comes into server
-
   socket.on("message", (message) => {
-    //console.log("message received" + message.toString());
-    //socket.send(message.toString() + ": sent from the server");
-    /*allSockets.forEach((s) =>
-      s.send(message.toString() + ": sent from the server")
-    );*/
-    for (let i = 0; i < allSockets.length; i++) {
-      const s = allSockets[i];
-      s.send(message.toString() + ": sent from the server");
+    // string convert into an object
+    const parsedMessage = JSON.parse(message as unknown as string);
+    console.log(parsedMessage); // object
+    if (parsedMessage.type === "join") {
+      allSockets.push({
+        socket,
+        room: parsedMessage.payload.roomId
+      });
+    }
+
+    if (parsedMessage.type === "chat") {
+      //const currentUserRoom = allSockets.find((x) =>x.socket == socket).room
+      let currentUserRoom = null; // {}
+      for (let i = 0; i < allSockets.length; i++) {
+        if (allSockets[i].socket == socket) {
+          currentUserRoom = allSockets[i].room;
+        }
+      }
+
+      // check the previous user room compare with current user room, send messages to everyone present in the room
+      for (let i = 0; i < allSockets.length; i++) {
+        if (allSockets[i].room == currentUserRoom)
+          allSockets[i].socket.send(parsedMessage.payload.message);
+      }
     }
   });
-
+  //@ts-ignore
   socket.on("disconnect", () => {
-    allSockets = allSockets.filter((x) => x != socket);
+    allSockets = allSockets.filter((user) => user.socket != socket);
   });
 });
 
-// documented client, server side messages - Gather Town
-// Dead, Alive Connection =
+/* let obj = {
+       "name": "harkirat"
+   } 
+   let str = "{'name': 'harkirat'}" 
+   */
 
-/*app.all("/*", (req, res) => {
-
-})*/
-
-// use redis to install pubsub
-// gather town video
+// when sender is includes or excludes ?
